@@ -120,6 +120,15 @@
     #panel.hidden { transform: translateY(100%); }
     .hint { display: none; }
   }
+  /* loader: shown until the first frame renders. The spinner animates on the compositor, so it keeps
+     turning even while the letters' geometry is being built on the main thread. */
+  #loader { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    background: linear-gradient(90deg, #184714, #0E1805); transition: opacity .6s ease; }
+  #loader.done { opacity: 0; pointer-events: none; }
+  #loader .spin { width: 38px; height: 38px; border-radius: 50%; border: 3px solid rgba(206,245,65,.18); border-top-color: #CEF541;
+    animation: spin .8s linear infinite; will-change: transform; }
+  #loader span { font: 600 11px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: rgba(206,245,65,.7); }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 <script type="importmap">
 { "imports": {
@@ -129,6 +138,7 @@
 </script>
 </head>
 <body>
+<div id="loader"><div class="spin"></div><span>Building 3D logo…</span></div>
 <div class="hint">Drag or flick a letter · ⌘ + drag to pan · Z zoom · H toggles controls</div>
 <div id="panel">
   <div class="sec">
@@ -1361,7 +1371,8 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
-requestAnimationFrame(() => { canvasReady = true; cv.style.opacity = layered() ? 1 : S.opacity; });
+requestAnimationFrame(() => { canvasReady = true; cv.style.opacity = layered() ? 1 : S.opacity;
+  const ld = document.getElementById('loader'); ld.classList.add('done'); setTimeout(() => ld.remove(), 700); });
 </script>
 </body>
 </html>
