@@ -1,0 +1,1367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Imagi Studio · 3D Logo</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #ffffff; overflow: hidden; transition: background-color .25s; }
+  canvas { position: relative; z-index: 0; display: block; width: 100vw; height: 100vh; opacity: 0; transition: opacity 0.9s ease; touch-action: none; }
+  .hint {
+    position: fixed; z-index: 5; left: 0; right: 0; bottom: 28px; text-align: center;
+    font: 500 12px/1 ui-sans-serif, system-ui, -apple-system, sans-serif;
+    letter-spacing: 0.14em; text-transform: uppercase; color: #b5b5bd;
+    pointer-events: none; user-select: none;
+  }
+
+  :root {
+    --panel: rgba(255,255,255,0.82); --line: rgba(20,20,40,0.08); --ink: #1d1d27; --mute: #8a8a98;
+    --accent: #4257b8; --field: rgba(20,20,40,0.05);
+  }
+  #panel {
+    position: fixed; z-index: 10; top: 16px; right: 16px; width: 300px; max-height: calc(100vh - 32px); overflow: auto;
+    background: var(--panel); backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 10px 40px rgba(20,20,60,0.10);
+    font: 500 12px/1.3 ui-sans-serif, system-ui, -apple-system, sans-serif; color: var(--ink);
+    transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .25s; scrollbar-width: thin;
+  }
+  #panel.hidden { transform: translateX(calc(100% + 24px)); opacity: 0; pointer-events: none; }
+  #toggle {
+    position: fixed; top: 16px; right: 16px; z-index: 11; height: 32px; padding: 0 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(12px); cursor: pointer;
+    font: 600 12px ui-sans-serif, system-ui, sans-serif; color: var(--ink); display: none;
+  }
+  #panel.hidden ~ #toggle { display: block; }
+  .sec { padding: 14px 16px; border-top: 1px solid var(--line); }
+  .sec:first-child { border-top: 0; }
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .title { font-weight: 650; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+  .iconbtn { border: 0; background: none; color: var(--mute); cursor: pointer; font: inherit; padding: 2px 4px; border-radius: 6px; }
+  .iconbtn:hover { color: var(--ink); background: var(--field); }
+  .tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 12px; }
+  .tab {
+    height: 38px; border-radius: 10px; border: 1.5px solid transparent; background: var(--field); cursor: pointer;
+    font: 800 15px ui-rounded, system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.18);
+    transition: transform .15s, border-color .15s;
+  }
+  .tab:hover { transform: translateY(-1px); }
+  .tab.on { border-color: var(--ink); }
+  .row { display: grid; grid-template-columns: 72px 1fr 46px; align-items: center; gap: 8px; margin: 7px 0; }
+  .row label { color: var(--mute); white-space: nowrap; }
+  .row output, .row .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 4px; background: rgba(20,20,40,0.12); outline: none; margin: 0; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 1.5px solid var(--ink); cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 1.5px solid var(--ink); cursor: pointer; }
+  input[type=color] { -webkit-appearance: none; appearance: none; width: 100%; height: 26px; border: 1px solid var(--line); border-radius: 8px; padding: 0; background: none; cursor: pointer; }
+  input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; }
+  input[type=color]::-webkit-color-swatch { border: 0; border-radius: 6px; }
+  .stepper { display: flex; align-items: center; gap: 4px; }
+  .stepper button { width: 26px; height: 24px; border-radius: 7px; border: 0; background: var(--field); cursor: pointer; font: 600 14px system-ui; color: var(--ink); }
+  .stepper button:hover { background: rgba(20,20,40,.1); }
+  .stepper span { min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 650; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--field); border-radius: 10px; padding: 3px; margin-bottom: 12px; }
+  .seg button { height: 28px; border: 0; border-radius: 8px; background: none; cursor: pointer; font: 600 12px system-ui, sans-serif; color: var(--mute); }
+  .seg button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .gbar { position: relative; height: 26px; border-radius: 8px; border: 1px solid var(--line); cursor: copy; margin: 4px 7px 22px; }
+  .stop {
+    position: absolute; top: 100%; width: 14px; height: 14px; margin: 3px 0 0 -7px; border-radius: 50%;
+    border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(20,20,40,.35), 0 1px 3px rgba(0,0,0,.2); cursor: grab;
+  }
+  .stop.on { box-shadow: 0 0 0 2px var(--ink), 0 1px 3px rgba(0,0,0,.2); }
+  .stoprow { display: grid; grid-template-columns: 1fr 64px 28px; gap: 8px; align-items: center; }
+  .stoprow input[type=number] { width: 100%; box-sizing: border-box; height: 26px; border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; font: inherit; background: #fff; }
+  .del { height: 26px; border: 0; border-radius: 8px; background: var(--field); cursor: pointer; color: var(--mute); font-size: 14px; }
+  .del:hover { color: #c33; }
+  .add { width: 100%; height: 30px; margin-top: 10px; border-radius: 9px; border: 1px dashed rgba(20,20,40,.22); background: none; cursor: pointer; font: 600 12px system-ui, sans-serif; color: var(--ink); }
+  .add:hover { background: var(--field); border-style: solid; }
+  .row output { cursor: text; border-radius: 5px; padding: 1px 3px; outline: none; }
+  .row output:hover { background: var(--field); }
+  .row output:focus { background: #fff; box-shadow: 0 0 0 1.5px var(--ink); }
+  select { width: 100%; height: 26px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font: inherit; color: var(--ink); padding: 0 6px; }
+  .slots { display: grid; gap: 6px; margin-bottom: 8px; }
+  .slot { display: grid; grid-template-columns: 18px 1fr 64px 52px; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 10px; background: var(--field); }
+  .slot b { font-weight: 750; }
+  .slot .st { color: var(--mute); font-size: 11px; }
+  .slot.has .st { color: var(--ink); }
+  .slot button { height: 26px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; font: 600 11px system-ui, sans-serif; color: var(--ink); }
+  .slot button:disabled { opacity: .4; cursor: default; }
+  details.adv > summary { cursor: pointer; list-style: none; }
+  details.adv > summary::before { content: '▸ '; }
+  details.adv[open] > summary::before { content: '▾ '; }
+  .note { color: var(--mute); font-size: 11px; margin-top: 6px; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .actions button { height: 30px; border-radius: 9px; border: 1px solid var(--line); background: #fff; cursor: pointer; font: 600 12px system-ui, sans-serif; color: var(--ink); }
+  .actions button:hover { background: var(--field); }
+  [hidden] { display: none !important; }
+  .sub { font-weight: 600; color: var(--ink); margin: 2px 0 8px; }
+  body.cmd canvas { cursor: grab; }
+  .seg3 { grid-template-columns: repeat(3, 1fr); margin-bottom: 8px; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 8px 0 10px; color: var(--ink); cursor: pointer; user-select: none; }
+  .check input { accent-color: var(--ink); width: 14px; height: 14px; margin: 0; }
+  .primary { width: 100%; height: 34px; border-radius: 10px; border: 0; background: var(--ink); color: #fff; cursor: pointer; font: 650 12px system-ui, sans-serif; }
+  .primary:hover { background: #33334a; }
+  .primary:disabled { opacity: .6; cursor: progress; }
+  #zoombar {
+    position: fixed; z-index: 10; left: 16px; bottom: 16px; display: flex; align-items: center; gap: 2px; padding: 4px;
+    background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 24px rgba(20,20,60,.08);
+    font: 600 12px ui-sans-serif, system-ui, sans-serif; color: var(--ink); user-select: none;
+  }
+  #zoombar button { height: 30px; min-width: 30px; padding: 0 9px; border: 0; border-radius: 8px; background: none; cursor: pointer; font: inherit; color: inherit; display: flex; align-items: center; gap: 6px; }
+  #zoombar button:hover { background: var(--field); }
+  #zoombar button.on { background: var(--ink); color: #fff; }
+  #zoombar .pct { min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; color: var(--mute); }
+  #zoombar .sep { width: 1px; height: 18px; background: var(--line); margin: 0 3px; }
+  body.zooming canvas { cursor: grab; }
+  body.zooming.panning canvas { cursor: grabbing; }
+  @media (max-width: 640px) { #zoombar { bottom: calc(46vh + 12px); } }
+  @media (max-width: 640px) {
+    #panel { top: auto; bottom: 0; right: 0; left: 0; width: auto; max-height: 46vh; border-radius: 16px 16px 0 0; }
+    #panel.hidden { transform: translateY(100%); }
+    .hint { display: none; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div class="hint">Drag or flick a letter · ⌘ + drag to pan · Z zoom · H toggles controls</div>
+<div id="panel">
+  <div class="sec">
+    <div class="head"><span class="title">Logo colour</span><button class="iconbtn" id="hide" title="Hide panel (H)">Hide ✕</button></div>
+    <div class="seg"><button id="mSolid">Solid</button><button id="mGrad">Gradient</button></div>
+    <div class="row" id="solidRow"><label>Colour</label><input type="color" id="lcol"><span></span></div>
+    <div id="gradUI"></div>
+  </div>
+  <div class="sec">
+    <div class="head"><span class="title">Background</span></div>
+    <div class="seg"><button id="bgSolid">Solid</button><button id="bgGradBtn">Gradient</button></div>
+    <div class="row" id="bgSolidRow"><label>Colour</label><input type="color" id="bgc"><span></span></div>
+    <div id="bgGrad"></div>
+  </div>
+  <div class="sec">
+    <div class="head"><span class="title">Animate</span></div>
+    <div class="slots">
+      <div class="slot" data-k="A"><b>A</b><span class="st">Empty</span><button class="save">Save A</button><button class="show">Show</button></div>
+      <div class="slot" data-k="B"><b>B</b><span class="st">Empty</span><button class="save">Save B</button><button class="show">Show</button></div>
+    </div>
+    <div class="row"><label>Duration</label><input type="range" id="adur" min="0.4" max="8" step="0.1"><output id="aduro"></output></div>
+    <div class="row"><label>Ease</label><select id="aease">
+      <option value="smooth">Smooth</option><option value="linear">Linear</option><option value="out">Ease out</option>
+      <option value="back">Overshoot</option><option value="bounce">Bounce</option><option value="elastic">Elastic</option></select><span></span></div>
+    <div class="row" id="astrRow"><label>Strength</label><input type="range" id="astr" min="0" max="3" step="0.05"><output id="astro"></output></div>
+    <div class="seg seg3" id="aplay"><button data-m="ab">A → B</button><button data-m="loop">Loop A ↔ B</button><button data-m="stop">Stop</button></div>
+    <div class="note">Set up a look, Save A. Change anything (letters, spacing, colours, background, light), Save B, then play.</div>
+  </div>
+  <div class="sec">
+    <div class="head"><span class="title">Export PNG</span></div>
+    <div class="seg seg3" id="scales"><button data-s="2">2×</button><button data-s="4">4×</button><button data-s="8">8×</button></div>
+    <div class="note" id="exdim" style="margin:0 0 4px"></div>
+    <label class="check"><input type="checkbox" id="extr">Transparent background</label>
+    <button class="primary" id="export">Export PNG</button>
+  </div>
+  <details class="sec adv">
+    <summary class="title">Advanced</summary>
+    <div class="sub" style="margin-top:12px">Letter</div>
+    <div class="tabs" id="tabs"></div>
+    <div class="row"><label>Rotate X</label><input type="range" id="rx" min="-180" max="180" step="1"><output id="rxo"></output></div>
+    <div class="row"><label>Rotate Y</label><input type="range" id="ry" min="-180" max="180" step="1"><output id="ryo"></output></div>
+    <div class="row"><label>Rotate Z</label><input type="range" id="rz" min="-180" max="180" step="1"><output id="rzo"></output></div>
+    <div class="row"><label>Lift</label><input type="range" id="ly" min="-0.5" max="0.5" step="0.01"><output id="lyo"></output></div>
+    <div class="row"><label>Z-index</label><div class="stepper"><button id="zdn">−</button><span id="zv">0</span><button id="zup">+</button></div><span></span></div>
+    <div class="actions" style="margin:6px 0 2px"><button id="zeroOne">Zero this letter</button><button id="zeroAll">Zero all letters</button></div>
+    <div class="sub" style="margin-top:14px">Spacing</div>
+    <div class="row"><label>Tracking</label><input type="range" id="trk" min="-0.3" max="0.6" step="0.005"><output id="trko"></output></div>
+    <div id="gaps"></div>
+    <div class="sub" style="margin-top:14px">Light</div>
+    <div class="row"><label>Brightness</label><input type="range" id="lexp" min="0.3" max="2" step="0.01"><output id="lexpo"></output></div>
+    <div class="row"><label>Shadow str.</label><input type="range" id="lcon" min="0" max="1" step="0.01"><output id="lcono"></output></div>
+    <div class="row"><label>Cast shadow</label><input type="range" id="lsha" min="0" max="1" step="0.01"><output id="lshao"></output></div>
+    <div class="row"><label>Direction</label><input type="range" id="lang" min="-180" max="180" step="1"><output id="lango"></output></div>
+    <div class="row"><label>Height</label><input type="range" id="lhei" min="5" max="85" step="1"><output id="lheio"></output></div>
+  </details>
+  <div class="sec actions"><button id="copy">Copy settings</button><button id="reset">Reset</button></div>
+</div>
+<button id="toggle">Controls</button>
+<div id="zoombar">
+  <button id="zmode" title="Zoom & pan mode (Z): scroll to zoom, drag to pan. Hold ⌘ and drag to pan any time.">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg>Zoom</button>
+  <span class="sep"></span>
+  <button id="zout" title="Zoom out">−</button>
+  <span class="pct" id="zpct">100%</span>
+  <button id="zin" title="Zoom in">+</button>
+  <button id="zfit" title="Reset view">Fit</button>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+/* ───────────────────────── Letter outlines from the logo vector ─────────────────────────
+   The SVG path is split into letters, each turned into a smooth 2D distance field
+   (exact polygon distance, then Gaussian-softened and sampled with a C2 B-spline).
+   That field is inflated into 3D with a squircle bevel and a soft front dome, so
+   curvature stays continuous and reflections glide across the surface.               */
+
+const LOGO_PATH = "M64.6104 0.372188C90.0496 0.3722 96.5898 1.67188 105.02 2.55188C116.749 3.78187 125.99 12.882 127.89 24.5118C128.39 27.7118 129.23 34.102 129.23 40.922C129.23 48.7315 127.761 58.9025 127.75 58.9816C126.55 70.7515 117.14 79.9918 105.37 81.0118L89.5303 82.382C86.8238 82.5917 84.7554 84.8661 84.75 87.5714L84.7305 87.5519C84.7305 90.2618 86.8099 92.502 89.5098 92.7521L104.26 94.0118C116.31 95.0218 125.83 104.692 126.67 116.772C127.54 129.522 129.16 142.242 129.16 167.782C129.16 193.322 127.58 207.552 126.67 220.792C125.83 233.122 116.21 242.962 103.91 244.152C95.7202 244.962 88.1398 246.262 64.5898 246.262C46.4603 246.262 33.5605 244.992 25.4805 244.152C13.0405 242.852 3.34973 232.912 2.46973 220.472C1.55972 207.332 0.00976562 193.101 0.00976562 167.772C0.00978602 144.482 1.62 129.582 2.5 116.902C3.35 104.782 12.8302 95.0521 24.9502 94.0021L39.7002 92.7423C42.4101 92.5322 44.4804 90.252 44.4805 87.5421C44.4805 84.8322 42.4001 82.592 39.7002 82.3419L23.8203 80.9718C12.1904 79.9918 3.05981 70.9321 1.50977 59.3722C1.01977 55.6822 0 47.8117 0 40.8917C2.46757e-05 33.0219 0.920476 27.4016 1.48047 23.8517C3.27061 12.402 12.5099 3.65179 24.0596 2.56164C32.5296 1.79164 47.8204 0.392188 64.6104 0.372188ZM378.31 0.391719C394.83 0.391719 403.97 1.82254 414.37 4.23254C433.37 8.62257 443.53 18.8625 445.94 41.3624C447.92 59.8323 450.3 85.7321 449.45 115.602C448.36 153.952 447.92 179.032 445.94 205.292C444.23 227.852 431.11 246.262 408.48 246.262H391.85C360.92 246.262 344.97 225.892 355.51 194.282L362.69 167.592C364.09 163.382 362.69 160.212 359.88 160.212H357.77C356.01 160.212 354.26 161.612 353.56 163.372L336.38 208.682C327.95 234.322 317.38 246.262 298.41 246.262C279.44 246.262 269.08 234.322 260.65 208.682L243.26 163.372C242.56 161.612 240.8 160.212 239.04 160.212C235.18 160.212 232.72 163.372 234.12 167.592L241.32 194.662C251.86 226.272 235.14 246.262 204.96 246.262H188.36C165.73 246.262 153.23 227.542 150.9 205.292C148.66 183.872 147.95 157.912 147.39 119.222C146.97 89.9221 149.27 62.8623 150.9 41.3624C152.61 18.8025 164.17 7.98257 183.88 4.23254C191.72 2.74255 206.39 0.391763 220.1 0.391719C240.38 0.391719 250.43 3.14219 257.96 4.87219C281.04 10.1722 290.71 16.922 291.7 46.0519C292.1 57.6819 293.15 81.5323 293.15 81.5323C293.151 84.2522 295.35 86.4523 298.07 86.4523C300.79 86.4521 302.99 84.2521 302.99 81.5323C302.99 81.5323 304.11 61.7423 304.88 44.8624C306.21 15.7424 320.1 8.06211 341.62 3.04211C351.39 0.762158 364.98 0.391727 378.31 0.391719ZM591.84 0.402462C630.42 0.402462 636.81 1.39225 651.55 3.91223C678.05 8.44221 688.78 14.1022 693.7 41.8419L720.4 197.092C725.67 228.002 717.24 246.262 685.98 246.262H637.59C608.08 246.262 600.97 230.962 598.86 200.603L597.12 175.662C597.12 172.852 595.01 170.742 592.2 170.742H591.5C588.69 170.742 586.58 172.852 586.58 175.662L584.37 200.603C581.76 229.992 572.89 246.262 543.38 246.262H499.06C467.8 246.262 458.01 228.002 463.28 197.092L489.98 41.8419C494.9 14.0923 500.32 8.0522 532.13 3.91223C546.96 1.98223 553.26 0.402467 591.84 0.402462ZM842.3 0.391719C854.81 -0.0182806 866.53 -0.0975774 877.62 0.112423C877.63 0.0824226 877.64 0.0621101 877.64 0.0421101C897.78 0.61211 914.11 1.21254 930.95 2.48254C952.12 4.08258 967.28 11.2523 969.47 35.2921C970.13 42.5521 969.63 54.2722 968.97 60.8722C966.54 85.182 953.05 94.9421 930.19 90.5724C922.71 89.1424 902.939 83.1125 895.229 81.1525C857.61 71.5826 840.28 75.2122 830.71 92.3722C824.05 104.322 822.02 106.402 818.39 122.682C815.41 136.022 820.26 153.262 836.76 161.072C842.85 163.952 859.06 170.072 869.74 170.652C874.03 170.882 877.44 162.542 869.08 160.972C842.13 155.912 824.61 148.972 827.22 125.052C828.19 116.212 832.38 107.582 834.89 102.662C843.8 85.1722 859.63 82.9723 880.32 87.7023C895.1 91.0823 917.88 98.0319 927.68 100.842L927.7 100.832C956.64 109.132 970.18 126.132 969.5 158.792C969.26 170.067 967.612 203.842 967.61 203.872C966.69 225.862 949.01 243.443 927.02 244.233C900.53 245.193 867.54 246.252 851.83 246.252C820.67 246.252 803.29 245.192 776.83 244.242C754.72 243.442 742.97 225.332 739.229 203.532C734.16 173.962 734.16 154.602 734.16 123.322C734.16 89.6125 735.82 76.9823 739.24 49.9425C742.25 26.1126 750.18 9.80217 776.68 5.79211C801.84 1.99211 814.2 1.29172 842.3 0.391719ZM1053.6 0.372188C1079.04 0.372188 1085.58 1.67188 1094.01 2.55188C1105.74 3.78187 1114.98 12.8819 1116.88 24.5118C1117.38 27.7118 1118.22 34.102 1118.22 40.922C1118.22 48.7304 1116.75 58.8997 1116.74 58.9816C1115.54 70.7514 1106.13 79.9917 1094.36 81.0118L1078.52 82.382C1075.81 82.5917 1073.75 84.8666 1073.74 87.5724L1073.71 87.5421C1073.71 90.2521 1075.79 92.4923 1078.49 92.7423L1093.24 94.0021C1105.29 95.0122 1114.81 104.682 1115.65 116.762C1116.52 129.512 1118.14 142.232 1118.14 167.772C1118.14 193.312 1116.56 207.542 1115.65 220.782C1114.81 233.112 1105.19 242.952 1092.89 244.142C1084.7 244.952 1077.12 246.252 1053.57 246.252C1035.44 246.252 1022.54 244.982 1014.46 244.142C1002.02 242.842 992.33 232.902 991.45 220.462C990.54 207.322 988.99 193.092 988.99 167.762C988.99 144.472 990.6 129.572 991.48 116.892C992.331 104.772 1001.81 95.0424 1013.93 93.9923L1028.68 92.7316C1031.39 92.5216 1033.46 90.2422 1033.46 87.5323C1033.46 84.8223 1031.38 82.5821 1028.68 82.3321L1012.8 80.962C1001.17 79.982 992.04 70.9222 990.49 59.3624C990 55.6724 988.98 47.802 988.98 40.882C988.98 33.012 989.9 27.3919 990.46 23.8419C992.25 12.392 1001.49 3.64194 1013.05 2.55188C1021.52 1.78188 1036.81 0.372209 1053.6 0.372188ZM591.49 63.6124C588.68 63.6124 586.77 65.7223 586.57 68.5323C586.22 73.5423 585.45 76.4327 585.81 88.6027C586.21 102.122 586.45 105.163 586.57 110.683C586.631 113.493 588.68 115.603 591.49 115.603H592.19C595 115.602 596.96 113.492 597.11 110.683C597.39 105.213 597.98 102.122 597.98 88.7921C597.98 75.4623 597.43 73.5923 597.11 68.5323C596.93 65.7325 595 63.6126 592.19 63.6124H591.49ZM84.7695 87.5919L84.75 87.5821C84.75 87.5786 84.75 87.5749 84.75 87.5714L84.7695 87.5919ZM1073.75 87.5821H1073.74C1073.74 87.5789 1073.74 87.5756 1073.74 87.5724L1073.75 87.5821Z";
+
+const SVG_H = 246.3;                             // logo height in SVG units → 1.0 world unit
+const H = 0.20, R = 0.13, BULGE = 0.055, PN = 3; // half-depth, bevel radius, dome, bevel squircle
+const G2 = 0.004;                                // 2D field grid step
+
+function parsePath(dstr) {
+  const toks = dstr.match(/[MLHVCZ]|-?\d*\.?\d+(?:e-?\d+)?/gi);
+  const subs = []; let cur = null, x = 0, y = 0, cmd = '', i = 0;
+  const num = () => parseFloat(toks[i++]);
+  while (i < toks.length) {
+    if (/[A-Za-z]/.test(toks[i])) cmd = toks[i++];
+    if (cmd === 'M') { x = num(); y = num(); cur = [[x, y]]; subs.push(cur); cmd = 'L'; }
+    else if (cmd === 'L') { x = num(); y = num(); cur.push([x, y]); }
+    else if (cmd === 'H') { x = num(); cur.push([x, y]); }
+    else if (cmd === 'V') { y = num(); cur.push([x, y]); }
+    else if (cmd === 'C') {
+      const x1 = num(), y1 = num(), x2 = num(), y2 = num(), x3 = num(), y3 = num();
+      for (let t = 1; t <= 12; t++) {
+        const u = t / 12, m = 1 - u;
+        cur.push([m*m*m*x + 3*m*m*u*x1 + 3*m*u*u*x2 + u*u*u*x3, m*m*m*y + 3*m*m*u*y1 + 3*m*u*u*y2 + u*u*u*y3]);
+      }
+      x = x3; y = y3;
+    } else if (cmd === 'Z' || cmd === 'z') { cmd = ''; }
+    else i++;
+  }
+  return subs;
+}
+
+function gaussBlur(src, nx, ny, sigma) {
+  const rad = Math.ceil(sigma * 3), ker = [];
+  let sum = 0;
+  for (let k = -rad; k <= rad; k++) { const w = Math.exp(-(k * k) / (2 * sigma * sigma)); ker.push(w); sum += w; }
+  for (let k = 0; k < ker.length; k++) ker[k] /= sum;
+  const tmp = new Float32Array(nx * ny), out = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    let a = 0; for (let k = -rad; k <= rad; k++) a += ker[k + rad] * src[Math.min(Math.max(i + k, 0), nx - 1) + nx * j];
+    tmp[i + nx * j] = a;
+  }
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    let a = 0; for (let k = -rad; k <= rad; k++) a += ker[k + rad] * tmp[i + nx * Math.min(Math.max(j + k, 0), ny - 1)];
+    out[i + nx * j] = a;
+  }
+  return out;
+}
+
+// cubic B-spline basis — C2-continuous sampling of a grid
+const bs = (t) => { const t2 = t * t, t3 = t2 * t, m = 1 - t;
+  return [m * m * m / 6, (3 * t3 - 6 * t2 + 4) / 6, (-3 * t3 + 3 * t2 + 3 * t + 1) / 6, t3 / 6]; };
+
+function makeShape(polys) {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const pl of polys) for (const [x, y] of pl) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, sc = 1 / SVG_H;
+  // to world units, centred, y up; flatten into segment list
+  const segs = [];
+  for (const pl of polys) for (let k = 0; k < pl.length; k++) {
+    const [ax, ay] = pl[k], [bx, by] = pl[(k + 1) % pl.length];
+    const x1 = (ax - cx) * sc, y1 = -(ay - cy) * sc, x2 = (bx - cx) * sc, y2 = -(by - cy) * sc;
+    if (x1 !== x2 || y1 !== y2) segs.push(x1, y1, x2, y2);
+  }
+  const hw = (maxX - minX) / 2 * sc, hh = (maxY - minY) / 2 * sc;
+  const pad = 0.12, gx0 = -hw - pad, gy0 = -hh - pad;
+  const nx = Math.ceil(2 * (hw + pad) / G2) + 1, ny = Math.ceil(2 * (hh + pad) / G2) + 1;
+  const raw = new Float32Array(nx * ny), ns = segs.length;
+  for (let j = 0; j < ny; j++) {
+    const py = gy0 + j * G2;
+    for (let i = 0; i < nx; i++) {
+      const px = gx0 + i * G2;
+      let best = Infinity, inside = false;
+      for (let s = 0; s < ns; s += 4) {
+        const ax = segs[s], ay = segs[s + 1], bx = segs[s + 2], by = segs[s + 3];
+        const ex = bx - ax, ey = by - ay, wx = px - ax, wy = py - ay;
+        const t = Math.min(Math.max((wx * ex + wy * ey) / (ex * ex + ey * ey), 0), 1);
+        const dx = wx - ex * t, dy = wy - ey * t, dd = dx * dx + dy * dy;
+        if (dd < best) best = dd;
+        if ((ay > py) !== (by > py) && px < ax + (py - ay) * ex / ey) inside = !inside;   // even-odd
+      }
+      raw[i + nx * j] = inside ? -Math.sqrt(best) : Math.sqrt(best);
+    }
+  }
+  const bevel = gaussBlur(raw, nx, ny, 0.014 / G2);   // softened outline for the bevel
+  const dome = gaussBlur(raw, nx, ny, 0.06 / G2);     // broad field for the inflation dome
+  const sample = (grid, x, y) => {
+    const fx = (x - gx0) / G2, fy = (y - gy0) / G2;
+    const ix = Math.floor(fx), iy = Math.floor(fy);
+    const wx = bs(fx - ix), wy = bs(fy - iy);
+    let v = 0;
+    for (let b = 0; b < 4; b++) {
+      const jj = Math.min(Math.max(iy + b - 1, 0), ny - 1);
+      let row = 0;
+      for (let a = 0; a < 4; a++) row += wx[a] * grid[Math.min(Math.max(ix + a - 1, 0), nx - 1) + nx * jj];
+      v += wy[b] * row;
+    }
+    return v;
+  };
+  const inflate = (d, dm, z) => {
+    const u = Math.max(-dm, 0) / 0.11;
+    const hc = H - R + BULGE * (1 - Math.exp(-u * u));
+    const wx = d + R, wy = Math.abs(z) - hc;
+    const ax = Math.max(wx, 0), ay = Math.max(wy, 0);
+    return Math.pow(ax ** PN + ay ** PN, 1 / PN) + Math.min(Math.max(wx, wy), 0) - R;
+  };
+  return {
+    hw, hh, cx: (cx - 559.5) * sc, cy: -(cy - SVG_H / 2) * sc,
+    column: (x, y) => [sample(bevel, x, y), sample(dome, x, y)],
+    inflate,
+    sdf: (x, y, z) => inflate(sample(bevel, x, y), sample(dome, x, y), z),
+  };
+}
+
+// split the single compound path into letters by horizontal position
+const LETTER_SPANS = [['I', 0, 140], ['M', 140, 455], ['A', 455, 725], ['G', 725, 980], ['I2', 980, 1120]];
+const SHAPES = {};
+{
+  const subs = parsePath(LOGO_PATH).filter(pl => {
+    const xs = pl.map(p => p[0]), ys = pl.map(p => p[1]);
+    return Math.max(...xs) - Math.min(...xs) > 2 && Math.max(...ys) - Math.min(...ys) > 2;   // drop slivers
+  });
+  for (const [k, x0, x1] of LETTER_SPANS) {
+    const mine = subs.filter(pl => { const mx = pl.reduce((a, p) => a + p[0], 0) / pl.length; return mx >= x0 && mx < x1; });
+    SHAPES[k] = makeShape(mine);
+  }
+}
+
+/* ───────────────────────── Mesh via surface nets ───────────────────────── */
+
+function buildGeometry(shape, step) {
+  const pad = 0.05, zMax = H + BULGE + pad;
+  const x0 = -shape.hw - pad, y0 = -shape.hh - pad, z0 = -zMax;
+  const nx = Math.ceil(2 * (shape.hw + pad) / step) + 1;
+  const ny = Math.ceil(2 * (shape.hh + pad) / step) + 1;
+  const nz = Math.ceil(2 * zMax / step) + 1;
+  const f3 = shape.sdf;
+
+  const CA = new Float32Array(nx * ny), CB = new Float32Array(nx * ny);
+  for (let j = 0, o = 0; j < ny; j++) for (let i = 0; i < nx; i++, o++) {
+    const [a, b] = shape.column(x0 + i * step, y0 + j * step); CA[o] = a; CB[o] = b;
+  }
+  const F = new Float32Array(nx * ny * nz);
+  for (let k = 0, o = 0; k < nz; k++) {
+    const z = z0 + k * step;
+    for (let q = 0; q < nx * ny; q++, o++) F[o] = shape.inflate(CA[q], CB[q], z);
+  }
+  const P = (i, j, k) => i + nx * (j + ny * k);
+
+  const cnx = nx - 1, cny = ny - 1, cnz = nz - 1;
+  const C = (i, j, k) => i + cnx * (j + cny * k);
+  const cellV = new Int32Array(cnx * cny * cnz).fill(-1);
+  const pos = [], nor = [];
+  const EDGES = [[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]];
+  const v = new Float32Array(8);
+  const e = step * 0.2;
+  const grad = (x, y, z) => {
+    const gx = (f3(x + e, y, z) - f3(x - e, y, z)) / (2 * e);
+    const gy = (f3(x, y + e, z) - f3(x, y - e, z)) / (2 * e);
+    const gz = (f3(x, y, z + e) - f3(x, y, z - e)) / (2 * e);
+    return [gx, gy, gz];
+  };
+
+  for (let k = 0; k < cnz; k++) for (let j = 0; j < cny; j++) for (let i = 0; i < cnx; i++) {
+    let mask = 0;
+    for (let c = 0; c < 8; c++) {
+      v[c] = F[P(i + (c & 1), j + ((c >> 1) & 1), k + ((c >> 2) & 1))];
+      if (v[c] < 0) mask |= 1 << c;
+    }
+    if (mask === 0 || mask === 255) continue;
+    let sx = 0, sy = 0, sz = 0, n = 0;
+    for (const [a, b] of EDGES) {
+      if ((v[a] < 0) === (v[b] < 0)) continue;
+      const t = v[a] / (v[a] - v[b]);
+      const ax = a & 1, ay = (a >> 1) & 1, az = (a >> 2) & 1;
+      const bx = b & 1, by = (b >> 1) & 1, bz = (b >> 2) & 1;
+      sx += ax + t * (bx - ax); sy += ay + t * (by - ay); sz += az + t * (bz - az); n++;
+    }
+    const cx = x0 + (i + sx / n) * step, cy = y0 + (j + sy / n) * step, cz = z0 + (k + sz / n) * step;
+    let px = cx, py = cy, pz = cz;
+    for (let it = 0; it < 4; it++) {           // project onto the true surface
+      const val = f3(px, py, pz), g = grad(px, py, pz);
+      const g2 = g[0] * g[0] + g[1] * g[1] + g[2] * g[2];
+      if (g2 < 1e-10) break;
+      const s = val / g2; px -= s * g[0]; py -= s * g[1]; pz -= s * g[2];
+    }
+    if (Math.hypot(px - cx, py - cy, pz - cz) > step * 1.5) { px = cx; py = cy; pz = cz; }
+    const g = grad(px, py, pz), gl = Math.hypot(g[0], g[1], g[2]) || 1;
+    cellV[C(i, j, k)] = pos.length / 3;
+    pos.push(px, py, pz); nor.push(g[0] / gl, g[1] / gl, g[2] / gl);
+  }
+
+  const idx = [];
+  const tri = (a, b, c) => {
+    const ax = pos[a*3], ay = pos[a*3+1], az = pos[a*3+2];
+    const ux = pos[b*3] - ax, uy = pos[b*3+1] - ay, uz = pos[b*3+2] - az;
+    const wx = pos[c*3] - ax, wy = pos[c*3+1] - ay, wz = pos[c*3+2] - az;
+    const cxp = uy * wz - uz * wy, cyp = uz * wx - ux * wz, czp = ux * wy - uy * wx;
+    const nx_ = nor[a*3] + nor[b*3] + nor[c*3], ny_ = nor[a*3+1] + nor[b*3+1] + nor[c*3+1], nz_ = nor[a*3+2] + nor[b*3+2] + nor[c*3+2];
+    if (cxp * nx_ + cyp * ny_ + czp * nz_ < 0) idx.push(a, c, b); else idx.push(a, b, c);
+  };
+  const d2 = (a, b) => (pos[a*3]-pos[b*3])**2 + (pos[a*3+1]-pos[b*3+1])**2 + (pos[a*3+2]-pos[b*3+2])**2;
+  const quad = (a, b, c, d) => {
+    a = cellV[a]; b = cellV[b]; c = cellV[c]; d = cellV[d];
+    if (a < 0 || b < 0 || c < 0 || d < 0) return;
+    if (d2(a, c) < d2(b, d)) { tri(a, b, c); tri(a, c, d); } else { tri(a, b, d); tri(b, c, d); }
+  };
+
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const inside = F[P(i, j, k)] < 0;
+    const jIn = j > 0 && j < ny - 1, kIn = k > 0 && k < nz - 1, iIn = i > 0 && i < nx - 1;
+    if (i < nx - 1 && jIn && kIn && (F[P(i + 1, j, k)] < 0) !== inside)
+      quad(C(i, j - 1, k - 1), C(i, j, k - 1), C(i, j, k), C(i, j - 1, k));
+    if (j < ny - 1 && iIn && kIn && (F[P(i, j + 1, k)] < 0) !== inside)
+      quad(C(i - 1, j, k - 1), C(i, j, k - 1), C(i, j, k), C(i - 1, j, k));
+    if (k < nz - 1 && iIn && jIn && (F[P(i, j, k + 1)] < 0) !== inside)
+      quad(C(i - 1, j - 1, k), C(i, j - 1, k), C(i, j, k), C(i - 1, j, k));
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  geo.setIndex(idx);
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+/* ───────────────────────── Scene ───────────────────────── */
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+renderer.setClearColor(0x000000, 0);   // background colour lives behind the canvas
+const pmrem = new THREE.PMREMGenerator(renderer);
+// Bright studio: a soft white dome (never dark at the horizon, so grazing edges reflect light
+// rather than grey) plus a few softboxes for the crisp highlights.
+function studioEnvironment() {
+  const env = new THREE.Scene();
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(20, 64, 32), new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false,
+    vertexShader: `varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `varying vec3 vDir; void main() {
+      float y = vDir.y;
+      vec3 c = mix(vec3(0.38), vec3(0.92), smoothstep(-0.9, 0.2, y));
+      c = mix(c, vec3(1.0), smoothstep(0.15, 1.0, y));
+      gl_FragColor = vec4(c, 1.0);
+    }`,
+  }));
+  env.add(dome);
+  const box = (w, h, intensity, pos) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(intensity, intensity, intensity), side: THREE.DoubleSide }));
+    m.position.set(...pos); m.lookAt(0, 0, 0); env.add(m);
+  };
+  box(9, 5, 5.0, [-6, 9, 8]);     // key, top-left front
+  box(4, 9, 2.6, [11, 2, 3]);     // right strip
+  box(3, 10, 1.8, [-11, 1, -2]);  // left strip
+  box(10, 10, 1.6, [0, 14, 0]);   // overhead
+  return env;
+}
+// same soft room environment as the Icon Library and Trail Generator
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.35;
+
+const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 100);
+
+const key = new THREE.DirectionalLight(0xfffaf0, 2.4);
+key.position.set(-2.5, 4.5, 6);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -4.2, right: 4.2, top: 2.2, bottom: -2.2, near: 1, far: 24 });
+key.shadow.bias = -0.0004;
+key.shadow.normalBias = 0.015;
+key.shadow.radius = 4;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xffffff, 0.5);   // = the other tabs' fill light
+rim.position.set(6, -2, 5);
+scene.add(rim);
+const hemi = new THREE.HemisphereLight(0xffffff, 0xE8DCC3, 1.25);
+scene.add(hemi);
+
+scene.traverse(o => { if (o.isLight) o.layers.enableAll(); });
+const word = new THREE.Group();
+scene.add(word);
+
+const STEP = 0.0065;
+const geos = {};
+for (const k of Object.keys(SHAPES)) geos[k] = buildGeometry(SHAPES[k], STEP);
+
+/* ───────────────────────── Settings ───────────────────────── */
+
+const KEYS = ['I', 'M', 'A', 'G', 'I2'];
+const GLYPH = ['i', 'M', 'A', 'G', 'i'];
+const deg = THREE.MathUtils.radToDeg, rad = THREE.MathUtils.degToRad;
+const naturalGaps = KEYS.slice(0, -1).map((k, i) => {
+  const a = SHAPES[k], b = SHAPES[KEYS[i + 1]];
+  return +((b.cx - b.hw) - (a.cx + a.hw)).toFixed(3);
+});
+const DEFAULTS = {
+  colorMode: 'gradient', solid: '#A9E832',
+  letters: [
+    { rx: -20, ry: -34, rz:  7, y:  0.03, z: 0, c: '#4257b8' },
+    { rx: -19, ry:  19, rz: 15, y:  0.07, z: 1, c: '#9bd88c' },
+    { rx: -29, ry: -25, rz: -7, y: -0.10, z: 2, c: '#f26a4b' },
+    { rx:  -5, ry: -20, rz: 20, y:  0.01, z: 0, c: '#93d5e8' },
+    { rx: -17, ry: -11, rz: -6, y: -0.05, z: 2, c: '#ec9ccb' },
+  ],
+  bg: '#184714', bgMode: 'gradient',
+  bgGrad: { angle: 0, stops: [{ p: 0, c: '#184714' }, { p: 1, c: '#0E1805' }] },
+  opacity: 1, multiply: 0, glass: false,
+  light: { exposure: 1, contrast: 0.65, shadows: 0, angle: -25, height: 22 }, ior: 1.5, frost: 0.12, dispersion: 0.35, tint: 0.25, exportScale: 4, exportTransparent: false,   // light matches the Icon Library's default
+  tracking: -0.115,
+  gaps: [0.03, -0.05, -0.055, -0.04],
+  grad: { angle: 0, stops: [{ p: 0, c: '#CEF541' }, { p: 1, c: '#80DC1E' }] },
+};
+const STORE = 'imagi-3d-settings-v1';
+let S = structuredClone(DEFAULTS);
+const save = () => {};   // no persistence inside Imagi Studio: every reload starts from the defaults
+
+/* ───────────────────────── Materials (solid or word-spanning gradient) ───────────────────────── */
+
+const gradCanvas = document.createElement('canvas');
+gradCanvas.width = 512; gradCanvas.height = 4;
+const gradTex = new THREE.CanvasTexture(gradCanvas);
+gradTex.colorSpace = THREE.SRGBColorSpace;
+gradTex.wrapS = gradTex.wrapT = THREE.ClampToEdgeWrapping;
+const G = {
+  uGrad: { value: gradTex }, uUse: { value: 0 },
+  uBehind: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uGlass: { value: 0 },
+  uIor: { value: 1.5 }, uFrost: { value: 0 }, uDisp: { value: 0 }, uForceTM: { value: 0 },
+  uMultiply: { value: 0 }, uExposure: { value: 1 }, uTint: { value: 0.25 }, uTanHalf: { value: Math.tan(THREE.MathUtils.degToRad(13)) },
+  uDir: { value: new THREE.Vector2(1, 0) }, uRange: { value: new THREE.Vector2(-2, 2) },
+};
+function paintGradient() {
+  const g = gradCanvas.getContext('2d'), lg = g.createLinearGradient(0, 0, gradCanvas.width, 0);
+  [...S.grad.stops].sort((a, b) => a.p - b.p).forEach(st => lg.addColorStop(Math.min(Math.max(st.p, 0), 1), st.c));
+  g.fillStyle = lg; g.fillRect(0, 0, gradCanvas.width, gradCanvas.height);
+  gradTex.needsUpdate = true;
+}
+
+// Glass: each letter samples a capture of everything drawn behind it (background + farther
+// letters), offset by the refracted view ray, with per-channel IOR for dispersion.
+const GLASS_PARS = `
+uniform sampler2D uBehind; uniform vec2 uRes; uniform float uGlass, uIor, uFrost, uDisp, uForceTM, uMultiply, uExposure, uTint, uTanHalf;
+varying vec3 vLetterZ;
+// Two-surface refraction through a pillow-shaped slab: refract in at the front, travel the
+// local thickness, refract out through the mirrored back surface, then continue to whatever
+// sits behind. Returns the view-space sideways shift of that ray vs. a straight one.
+vec2 slabShift(vec3 I, vec3 N, vec3 Z, float ior, float t) {
+  vec3 Nb = N - 2.0 * dot(N, Z) * Z;                  // outward normal of the back surface
+  vec3 r1 = refract(I, N, 1.0 / ior);
+  float L = t / max(dot(r1, -Z), 0.3);
+  vec3 r2 = refract(r1, -Nb, ior);
+  if (dot(r2, r2) < 1e-4) r2 = reflect(r1, -Nb);      // total internal reflection
+  const float D = 0.55;                               // gap to the layer behind
+  return (r1 * L + r2 * D - I * (L + D)).xy;
+}
+vec3 imagiNeutral(vec3 color) {            // Khronos PBR Neutral, used when rendering offscreen
+  const float start = 0.76, desat = 0.15;
+  float x = min(color.r, min(color.g, color.b));
+  color -= x < 0.08 ? x - 6.25 * x * x : 0.04;
+  float peak = max(color.r, max(color.g, color.b));
+  if (peak < start) return color;
+  float d = 1.0 - start, np = 1.0 - d * d / (peak + d - start);
+  color *= np / peak;
+  return mix(color, vec3(np), 1.0 - 1.0 / (desat * (peak - np) + 1.0));
+}`;
+const GLASS_FRAG = `
+float glassAlpha = 1.0;
+if (uGlass > 0.0) {
+  vec3 Vv = normalize(vViewPosition), Nn = normalize(normal), I = -Vv;
+  vec3 Z = normalize(vLetterZ);
+  float facing = dot(Nn, Z);
+  Z *= facing < 0.0 ? -1.0 : 1.0;                    // whichever side of the letter faces us
+  float t = 0.44 * smoothstep(0.0, 0.85, abs(facing)); // thinner toward the rim
+  vec2 suv = gl_FragCoord.xy / uRes;
+  vec2 toUv = vec2(uRes.y / uRes.x, 1.0) / (2.0 * vViewPosition.z * uTanHalf);
+  float lod = uFrost * 7.0, dd = uDisp * 0.08;
+  vec2 oR = slabShift(I, Nn, Z, max(uIor - dd, 1.0), t) * toUv;
+  vec2 oG = slabShift(I, Nn, Z, uIor, t) * toUv;
+  vec2 oB = slabShift(I, Nn, Z, uIor + dd, t) * toUv;
+  vec4 mid = textureLod(uBehind, suv + oG, lod);
+  vec3 behind = vec3(textureLod(uBehind, suv + oR, lod).r, mid.g, textureLod(uBehind, suv + oB, lod).b);
+  float fres = pow(1.0 - clamp(dot(Nn, Vv), 0.0, 1.0), 3.0);
+  float g = uGlass * (1.0 - 0.5 * fres);
+  totalDiffuse = mix(totalDiffuse, behind * mix(vec3(1.0), diffuseColor.rgb, uTint), g);
+  glassAlpha = mix(1.0, mid.a, g);
+}`;
+
+// Multiply: where a letter covers letters already drawn, darken by their colour (the
+// background is masked out via alpha = 0, so it never tints the letters).
+const MULTIPLY_FRAG = `
+if (uMultiply > 0.0) {
+  vec4 bh = texture2D(uBehind, gl_FragCoord.xy / uRes);
+  vec3 under = bh.rgb / max(bh.a, 1e-3);
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * under, clamp(bh.a, 0.0, 1.0) * uMultiply);
+}`;
+
+function makeMat(hex) {
+  const m = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(hex), roughness: 1, metalness: 0,     // matte, like the icons and trails
+  });
+  m.userData.uOffset = { value: new THREE.Vector2() };   // letter's resting place in the word
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, G, { uOffset: m.userData.uOffset });
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform vec2 uOffset;\nvarying vec2 vWordXY;\nvarying vec3 vLetterZ;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWordXY = uOffset + transformed.xy;\nvLetterZ = normalize(normalMatrix * vec3(0.0, 0.0, 1.0));');
+    // Cap grazing-angle reflectance: at the silhouette Fresnel would otherwise swap the
+    // letter's colour for a grey environment reflection, drawing a dark outline.
+    const lightsChunk = THREE.ShaderChunk.lights_physical_fragment
+      .replace('material.clearcoatF90 = 1.0;', 'material.clearcoatF90 = 0.28;')
+      .replace('material.specularF90 = mix( specularIntensityFactor, 1.0, metalnessFactor );', 'material.specularF90 = 0.3;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <lights_physical_fragment>', lightsChunk)
+      .replace('#include <common>', '#include <common>\nuniform sampler2D uGrad;\nuniform float uUse;\nuniform vec2 uDir;\nuniform vec2 uRange;\nvarying vec2 vWordXY;\n' + GLASS_PARS)
+      .replace('#include <transmission_fragment>', '#include <transmission_fragment>\n' + GLASS_FRAG)
+      .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.a *= glassAlpha;')
+      .replace('#include <tonemapping_fragment>', '#include <tonemapping_fragment>\nif (uForceTM > 0.5) gl_FragColor.rgb = imagiNeutral(gl_FragColor.rgb * uExposure);\n' + MULTIPLY_FRAG)
+      .replace('vec4 diffuseColor = vec4( diffuse, opacity );',
+        `float gu = clamp((dot(vWordXY, uDir) - uRange.x) / max(uRange.y - uRange.x, 1e-4), 0.0, 1.0);
+         vec3 gcol = texture2D(uGrad, vec2(gu, 0.5)).rgb;
+         vec4 diffuseColor = vec4(mix(diffuse, gcol, uUse), opacity);`);
+  };
+  return m;
+}
+
+const letters = KEYS.map((k, n) => {
+  const mesh = new THREE.Mesh(geos[k], makeMat(S.letters[n].c));
+  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.layers.mask = 1 | (1 << (n + 1));    // layer 0 = everyone, layer n+1 = just this letter
+  word.add(mesh);
+  return {
+    i: n, mesh, shape: SHAPES[k],
+    base: new THREE.Vector3(), target: new THREE.Vector3(),
+    rest: new THREE.Quaternion(), restTarget: new THREE.Quaternion(),
+    spin: new THREE.Quaternion(), w: new THREE.Vector3(),
+    phase: n * 1.37 + 0.4, hover: 0, hoverT: 0, press: 0,
+  };
+});
+
+let wordWidth = 4.6, canvasReady = false;
+const lerp = (a, b, t) => a + (b - a) * t;
+const GROUND = new THREE.Color('#E8DCC3'), GROUND_DARK = new THREE.Color('#3d3226');
+function applyLight() {   // identical rig to the Icon Library: "Shadow strength" is the same control as its slider
+  const L = S.light, k = L.contrast;
+  renderer.toneMappingExposure = L.exposure; G.uExposure.value = L.exposure;
+  scene.environmentIntensity = 0.35 * (1 - 0.65 * k);
+  hemi.intensity = 1.25 * (1 - 0.65 * k); hemi.groundColor.copy(GROUND).lerp(GROUND_DARK, k);
+  key.intensity = 2.4 * (1 + 0.45 * k);
+  rim.intensity = 0.5 * (1 - 0.7 * k);
+  key.shadow.intensity = L.shadows;
+  const az = rad(L.angle), el = rad(L.height), d = 8;
+  key.position.set(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, Math.cos(az) * Math.cos(el) * d);
+}
+
+/* ───────────────────────── Background (CSS for solid render, texture for glass render) ───────────────────────── */
+
+const sortedStops = (st) => [...st].sort((a, b) => a.p - b.p);
+function sampleStops(stops, p) {
+  const st = sortedStops(stops);
+  if (p <= st[0].p) return st[0].c;
+  for (let i = 1; i < st.length; i++) if (p <= st[i].p) {
+    const a = st[i - 1], b = st[i], t = (p - a.p) / Math.max(b.p - a.p, 1e-6);
+    return '#' + new THREE.Color(a.c).lerp(new THREE.Color(b.c), t).getHexString();
+  }
+  return st[st.length - 1].c;
+}
+const cssStops = (st) => sortedStops(st).map(x => `${x.c} ${(x.p * 100).toFixed(1)}%`).join(', ');
+// angle convention everywhere: 0° = left→right, positive = counter-clockwise (CSS is 90° − angle)
+const bgCSS = () => S.bgMode === 'gradient' ? `linear-gradient(${90 - S.bgGrad.angle}deg, ${cssStops(S.bgGrad.stops)})` : S.bg;
+function fillBg(g, w, h) {
+  if (S.bgMode !== 'gradient') { g.fillStyle = S.bg; g.fillRect(0, 0, w, h); return; }
+  const a = rad(S.bgGrad.angle), dx = Math.cos(a), dy = -Math.sin(a);      // canvas y points down
+  const ext = Math.abs(dx) * w / 2 + Math.abs(dy) * h / 2;
+  const lg = g.createLinearGradient(w / 2 - dx * ext, h / 2 - dy * ext, w / 2 + dx * ext, h / 2 + dy * ext);
+  sortedStops(S.bgGrad.stops).forEach(st => lg.addColorStop(Math.min(Math.max(st.p, 0), 1), st.c));
+  g.fillStyle = lg; g.fillRect(0, 0, w, h);
+}
+const bgCanvas = document.createElement('canvas');
+bgCanvas.width = 1024; bgCanvas.height = 4;
+const bgTex = new THREE.CanvasTexture(bgCanvas);
+bgTex.colorSpace = THREE.SRGBColorSpace;
+function paintBg() {
+  const g = bgCanvas.getContext('2d');
+  if (S.bgMode === 'gradient') {
+    const lg = g.createLinearGradient(0, 0, bgCanvas.width, 0);
+    sortedStops(S.bgGrad.stops).forEach(st => lg.addColorStop(Math.min(Math.max(st.p, 0), 1), st.c));
+    g.fillStyle = lg;
+  } else g.fillStyle = S.bg;
+  g.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+  bgTex.needsUpdate = true;
+}
+
+/* ───────────────────────── Glass render path ─────────────────────────
+   1. background → A   2. for each letter far→near: copy A → B (mipmapped), draw letter into A
+   sampling B for refraction   3. A → screen. Tone mapping happens per letter, so the
+   background keeps its exact colour.                                                   */
+
+const fsCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const fsVert = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+const fsMat = (frag, uniforms) => new THREE.ShaderMaterial({ uniforms, vertexShader: fsVert, fragmentShader: frag, depthTest: false, depthWrite: false, blending: THREE.NoBlending });
+const copyMat = fsMat(`uniform sampler2D tMap; varying vec2 vUv; void main() { gl_FragColor = texture2D(tMap, vUv); }`, { tMap: { value: null } });
+const outMat = fsMat(`uniform sampler2D tMap, tBg; uniform vec2 uRes, uDir; uniform float uGlassMode, uTransparent, uOpacity;
+  varying vec2 vUv;
+  void main() {
+    vec4 a = texture2D(tMap, vUv);
+    if (uGlassMode > 0.5) {
+      gl_FragColor = vec4(a.rgb, uTransparent > 0.5 ? a.a : 1.0);
+    } else {
+      vec2 p = gl_FragCoord.xy - uRes * 0.5;
+      float ext = abs(uDir.x) * uRes.x * 0.5 + abs(uDir.y) * uRes.y * 0.5;
+      vec3 bg = texture2D(tBg, vec2(clamp(dot(p, uDir) / ext * 0.5 + 0.5, 0.0, 1.0), 0.5)).rgb;
+      float k = a.a * uOpacity;
+      gl_FragColor = uTransparent > 0.5 ? vec4(a.rgb * uOpacity, k) : vec4(bg * (1.0 - k) + a.rgb * uOpacity, 1.0);
+    }
+    #include <colorspace_fragment>
+  }`, { tMap: { value: null }, tBg: { value: bgTex }, uRes: { value: new THREE.Vector2() }, uDir: { value: new THREE.Vector2(1, 0) },
+       uGlassMode: { value: 0 }, uTransparent: { value: 0 }, uOpacity: { value: 1 } });
+const bgMat = fsMat(`uniform sampler2D tBg; uniform vec2 uRes, uDir; uniform float uAlpha;
+  void main() {
+    vec2 p = gl_FragCoord.xy - uRes * 0.5;
+    float ext = abs(uDir.x) * uRes.x * 0.5 + abs(uDir.y) * uRes.y * 0.5;
+    vec3 c = texture2D(tBg, vec2(clamp(dot(p, uDir) / ext * 0.5 + 0.5, 0.0, 1.0), 0.5)).rgb;
+    gl_FragColor = vec4(c * uAlpha, 0.0);     // alpha 0 = "not a letter" mask
+  }`, { tBg: { value: bgTex }, uRes: { value: new THREE.Vector2() }, uDir: { value: new THREE.Vector2(1, 0) }, uAlpha: { value: 1 } });
+const fsQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copyMat);
+fsQuad.frustumCulled = false;
+const fsScene = new THREE.Scene(); fsScene.add(fsQuad);
+function fullscreen(mat, target) { fsQuad.material = mat; renderer.setRenderTarget(target); renderer.render(fsScene, fsCam); }
+
+const RT = { a: null, b: null, dummy: new THREE.WebGLRenderTarget(1, 1) };
+function ensureTargets(w, h) {
+  const samples = w * h > 9e6 ? 0 : 4;
+  if (RT.a && RT.a.width === w && RT.a.height === h && RT.a.samples === samples) return;
+  RT.a?.dispose(); RT.b?.dispose();
+  RT.a = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples, depthBuffer: true });
+  RT.b = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, depthBuffer: false, generateMipmaps: true,
+    minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
+}
+const _size = new THREE.Vector2(), _wp = new THREE.Vector3();
+const layered = () => S.glass || S.multiply > 0;
+function renderLayered(transparentBg = false) {
+  renderer.getDrawingBufferSize(_size);
+  ensureTargets(_size.x, _size.y);
+  G.uRes.value.copy(_size); G.uForceTM.value = 1;
+  G.uGlass.value = S.glass ? 1 - S.opacity : 0;
+  G.uMultiply.value = S.multiply;
+  const needBehind = G.uGlass.value > 0.001 || S.multiply > 0;
+  renderer.autoClear = false;
+  camera.updateMatrixWorld();
+
+  // shadow map with every letter present
+  renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true;
+  camera.layers.mask = 1;
+  renderer.setRenderTarget(RT.dummy); renderer.render(scene, camera);
+
+  // background
+  const a = rad(S.bgGrad.angle);
+  bgMat.uniforms.uDir.value.set(S.bgMode === 'gradient' ? Math.cos(a) : 1, S.bgMode === 'gradient' ? Math.sin(a) : 0);
+  // Glass refracts the background, so it lives in the buffer; otherwise this pass just writes
+  // zeros. Either way it must run: it's a render() call, which resolves the multisampled buffer
+  // so the first copy below doesn't read last frame's pixels.
+  bgMat.uniforms.uRes.value.copy(_size); bgMat.uniforms.uAlpha.value = (S.glass && !transparentBg) ? 1 : 0;
+  renderer.setRenderTarget(RT.a); renderer.setClearColor(0x000000, 0); renderer.clear(true, true, true);
+  fullscreen(bgMat, RT.a);
+
+  // letters, farthest first, each refracting what is already drawn
+  const order = letters.map(L => ({ L, z: L.mesh.getWorldPosition(_wp).applyMatrix4(camera.matrixWorldInverse).z }))
+    .sort((p, q) => p.z - q.z);
+  G.uBehind.value = RT.b.texture;
+  for (const { L } of order) {
+    if (needBehind) { copyMat.uniforms.tMap.value = RT.a.texture; fullscreen(copyMat, RT.b); }
+    camera.layers.mask = 1 << (L.i + 1);
+    renderer.setRenderTarget(RT.a); renderer.render(scene, camera);
+  }
+  camera.layers.mask = 1;
+  const ou = outMat.uniforms;
+  ou.tMap.value = RT.a.texture; ou.uRes.value.copy(_size); ou.uDir.value.copy(bgMat.uniforms.uDir.value);
+  ou.uGlassMode.value = S.glass ? 1 : 0; ou.uTransparent.value = transparentBg ? 1 : 0; ou.uOpacity.value = S.opacity;
+  fullscreen(outMat, null);
+
+  renderer.autoClear = true; renderer.shadowMap.autoUpdate = true;
+  G.uForceTM.value = 0; G.uGlass.value = 0; G.uMultiply.value = 0;
+}
+function renderFrame(transparentBg = false) {
+  if (layered()) renderLayered(transparentBg);
+  else { renderer.setRenderTarget(null); renderer.render(scene, camera); }
+}
+function applySettings(snap = false) {
+  // horizontal layout from per-gap spacing, centred
+  const xs = [0];
+  for (let i = 1; i < 5; i++)
+    xs[i] = xs[i - 1] + letters[i - 1].shape.hw + naturalGaps[i - 1] + S.tracking + S.gaps[i - 1] + letters[i].shape.hw;
+  const left = xs[0] - letters[0].shape.hw, right = xs[4] + letters[4].shape.hw;
+  const mid = (left + right) / 2;
+  wordWidth = right - left;
+  letters.forEach((L, i) => {
+    const c = S.letters[i];
+    L.target.set(xs[i] - mid, c.y, c.z * 0.32);
+    L.restTarget.setFromEuler(new THREE.Euler(rad(c.rx), rad(c.ry), rad(c.rz), 'YXZ'));
+    L.mesh.material.color.set(S.solid);
+    L.mesh.material.userData.uOffset.value.set(L.target.x, L.target.y);
+    if (snap) { L.base.copy(L.target); L.rest.copy(L.restTarget); }
+  });
+  // gradient direction + extent across the whole word
+  G.uUse.value = S.colorMode === 'gradient' ? 1 : 0;
+  const a = rad(S.grad.angle), dir = G.uDir.value.set(Math.cos(a), Math.sin(a));
+  const hw = wordWidth / 2 + 0.02, hh = 0.56;
+  const ext = Math.abs(dir.x) * hw + Math.abs(dir.y) * hh;
+  G.uRange.value.set(-ext, ext);
+  paintGradient();
+  paintBg();
+  document.body.style.background = bgCSS();
+  G.uIor.value = S.ior; G.uFrost.value = S.frost; G.uDisp.value = S.dispersion; G.uTint.value = S.tint ?? 0.25;
+  if (canvasReady) renderer.domElement.style.opacity = layered() ? 1 : S.opacity;
+  applyLight();
+  save();
+}
+applySettings(true);
+
+/* ───────────────────────── Interaction ───────────────────────── */
+
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const pointer = { x: 0, y: 0, px: 0, py: 0, inside: false };
+const drag = { L: null, lastT: 0, vel: new THREE.Vector3() };
+const meshes = letters.map(l => l.mesh);
+const tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3();
+
+function pick(cx, cy) {
+  ndc.set((cx / window.innerWidth) * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObjects(meshes, false)[0];
+  return hit ? letters[meshes.indexOf(hit.object)] : null;
+}
+
+const cv = renderer.domElement;
+cv.addEventListener('pointerdown', (ev) => {
+  if (zoomMode || ev.metaKey) {
+    cv.setPointerCapture(ev.pointerId);
+    panning = true; document.body.classList.add('panning');
+    pointer.px = ev.clientX; pointer.py = ev.clientY;
+    return;
+  }
+  const L = pick(ev.clientX, ev.clientY);
+  if (!L) return;
+  cv.setPointerCapture(ev.pointerId);
+  drag.L = L; drag.lastT = performance.now(); drag.vel.set(0, 0, 0);
+  selectLetter(L.i);
+  L.w.set(0, 0, 0);
+  pointer.px = ev.clientX; pointer.py = ev.clientY;
+  cv.style.cursor = 'grabbing';
+});
+cv.addEventListener('pointermove', (ev) => {
+  const dx = ev.clientX - pointer.px, dy = ev.clientY - pointer.py;
+  pointer.px = ev.clientX; pointer.py = ev.clientY;
+  pointer.x = (ev.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(ev.clientY / window.innerHeight) * 2 + 1;
+  pointer.inside = true;
+  const now = performance.now();
+  if (zoomMode || panning) {
+    if (panning) {
+      const z = camTarget().z, t = halfTan();
+      view.panX -= dx / window.innerWidth * 2 * z * t * camera.aspect;
+      view.panY += dy / window.innerHeight * 2 * z * t;
+    }
+    return;
+  }
+  if (drag.L) {
+    const dt = Math.max((now - drag.lastT) / 1000, 1 / 240); drag.lastT = now;
+    const s = 6.0 / window.innerHeight * Math.PI;     // pixels → radians
+    tmpV.set(dy * s, dx * s, 0);
+    const ang = tmpV.length();
+    if (ang > 0) {
+      tmpQ.setFromAxisAngle(tmpV.clone().normalize(), ang);
+      drag.L.spin.premultiply(tmpQ).normalize();
+    }
+    drag.vel.lerp(tmpV.multiplyScalar(1 / dt), 0.45);
+    return;
+  }
+  const L = pick(ev.clientX, ev.clientY);
+  letters.forEach(l => l.hoverT = l === L ? 1 : 0);
+  cv.style.cursor = L ? 'grab' : 'default';
+  if (L) L.w.add(new THREE.Vector3(dy, dx, 0).multiplyScalar(0.035));   // brushing past nudges it
+});
+const release = () => {
+  if (panning) { panning = false; document.body.classList.remove('panning'); }
+  if (!drag.L) return;
+  if (performance.now() - drag.lastT > 90) drag.vel.set(0, 0, 0);       // held still before letting go
+  drag.L.w.copy(drag.vel).clampLength(0, 40);
+  drag.L = null;
+  cv.style.cursor = 'grab';
+};
+cv.addEventListener('pointerup', release);
+cv.addEventListener('pointercancel', release);
+cv.addEventListener('pointerleave', () => { pointer.inside = false; letters.forEach(l => l.hoverT = 0); });
+
+
+/* ───────────────────────── Controls panel ───────────────────────── */
+
+const $ = (id) => document.getElementById(id);
+const panel = $('panel');
+let sel = 0, selStop = 0;
+const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
+
+KEYS.forEach((k, i) => {
+  const b = document.createElement('button');
+  b.className = 'tab'; b.textContent = GLYPH[i];
+  b.onclick = () => selectLetter(i);
+  $('tabs').appendChild(b);
+});
+const GAP_NAMES = ['i · M', 'M · A', 'A · G', 'G · i'];
+GAP_NAMES.forEach((name, i) => {
+  const r = document.createElement('div');
+  r.className = 'row';
+  r.innerHTML = `<label>${name}</label><input type="range" min="-0.4" max="0.6" step="0.005" data-gap="${i}"><output></output>`;
+  $('gaps').appendChild(r);
+  const inp = r.querySelector('input');
+  inp.oninput = () => { S.gaps[i] = +inp.value; applySettings(); syncUI(); };
+});
+
+function bindRange(id, get, set, fmt) {
+  const el = $(id);
+  el.oninput = () => { set(+el.value); applySettings(); syncUI(); };
+  el.dataset.fmt = fmt;
+  el._get = get;
+}
+const fmtDeg = (v) => `${Math.round(v)}°`, fmtNum = (v) => (+v).toFixed(2);
+bindRange('rx', () => S.letters[sel].rx, v => S.letters[sel].rx = v, 'deg');
+bindRange('ry', () => S.letters[sel].ry, v => S.letters[sel].ry = v, 'deg');
+bindRange('rz', () => S.letters[sel].rz, v => S.letters[sel].rz = v, 'deg');
+bindRange('ly', () => S.letters[sel].y, v => S.letters[sel].y = v, 'num');
+bindRange('trk', () => S.tracking, v => S.tracking = v, 'num');
+const ranges = ['rx', 'ry', 'rz', 'ly', 'trk'];
+
+$('zdn').onclick = () => { S.letters[sel].z = Math.max(-5, S.letters[sel].z - 1); applySettings(); syncUI(); };
+$('zup').onclick = () => { S.letters[sel].z = Math.min(5, S.letters[sel].z + 1); applySettings(); syncUI(); };
+$('lcol').oninput = (e) => { S.solid = e.target.value; applySettings(); syncUI(); };
+$('mSolid').onclick = () => { S.colorMode = 'solid'; applySettings(); syncUI(); };
+$('mGrad').onclick = () => { S.colorMode = 'gradient'; applySettings(); syncUI(); };
+
+function gradientEditor(root, get, onChange) {
+  root.innerHTML = `
+    <div class="gbar"></div>
+    <div class="stoprow"><input type="color"><input type="number" min="0" max="100" step="1"><button class="del" title="Remove stop">✕</button></div>
+    <div class="row"><label>Angle</label><input type="range" class="ang" min="-180" max="180" step="1"><output></output></div>
+    <button class="add">+ Add colour</button>
+    <div class="note">Or click the bar to add a stop there · drag stops to move them</div>`;
+  const bar = root.querySelector('.gbar'), col = root.querySelector('input[type=color]'),
+        pos = root.querySelector('input[type=number]'), del = root.querySelector('.del'),
+        ang = root.querySelector('.ang'), angOut = ang.nextElementSibling, add = root.querySelector('.add');
+  let selS = 0;
+  const changed = () => { onChange(); sync(); };
+  const barPos = (ev) => { const r = bar.getBoundingClientRect(); return Math.min(Math.max((ev.clientX - r.left) / r.width, 0), 1); };
+  bar.addEventListener('pointerdown', (ev) => {
+    if (ev.target !== bar) return;
+    const p = barPos(ev), g = get();
+    g.stops.push({ p, c: sampleStops(g.stops, p) }); selS = g.stops.length - 1; changed();
+  });
+  const paintBar = () => { bar.style.background = `linear-gradient(90deg, ${cssStops(get().stops)})`; };
+  const fields = () => {
+    const g = get(), st = g.stops[selS]; if (!st) return;
+    col.value = st.c; if (document.activeElement !== pos) pos.value = Math.round(st.p * 100);
+    del.disabled = g.stops.length <= 2;
+  };
+  function sync() {
+    const g = get();
+    selS = Math.min(selS, g.stops.length - 1);
+    bar.querySelectorAll('.stop').forEach(n => n.remove());
+    g.stops.forEach((st, i) => {
+      const h = document.createElement('div');
+      h.className = 'stop' + (i === selS ? ' on' : '');
+      h.style.left = st.p * 100 + '%'; h.style.background = st.c;
+      h.addEventListener('pointerdown', (ev) => {
+        ev.stopPropagation(); selS = i; h.setPointerCapture(ev.pointerId);
+        bar.querySelectorAll('.stop').forEach(n => n.classList.toggle('on', n === h)); fields();
+        const move = (e) => { st.p = barPos(e); h.style.left = st.p * 100 + '%'; onChange(); fields(); paintBar(); };
+        const up = () => { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); changed(); };
+        h.addEventListener('pointermove', move); h.addEventListener('pointerup', up);
+      });
+      bar.appendChild(h);
+    });
+    paintBar(); fields();
+    if (document.activeElement !== ang) ang.value = g.angle;
+    angOut.textContent = Math.round(g.angle) + '°';
+  }
+  col.oninput = () => { get().stops[selS].c = col.value; changed(); };
+  pos.oninput = () => { get().stops[selS].p = Math.min(Math.max(+pos.value / 100, 0), 1); changed(); };
+  ang.oninput = () => { get().angle = +ang.value; changed(); };
+  del.onclick = () => { const g = get(); if (g.stops.length <= 2) return; g.stops.splice(selS, 1); selS = Math.max(0, selS - 1); changed(); };
+  // add a stop in the middle of the widest gap between existing stops
+  add.onclick = () => {
+    const g = get(), st = sortedStops(g.stops);
+    let best = 0, at = 0.5;
+    for (let i = 1; i < st.length; i++) { const d = st[i].p - st[i - 1].p; if (d > best) { best = d; at = (st[i].p + st[i - 1].p) / 2; } }
+    if (st[0].p > best) at = st[0].p / 2;
+    if (1 - st[st.length - 1].p > best) at = (1 + st[st.length - 1].p) / 2;
+    g.stops.push({ p: at, c: sampleStops(g.stops, at) }); selS = g.stops.length - 1; changed();
+    col.click();   // open the picker straight away
+  };
+  return { sync };
+}
+const wordEd = gradientEditor($('gradUI'), () => S.grad, () => { applySettings(); syncTabs(); });
+const bgEd = gradientEditor($('bgGrad'), () => S.bgGrad, () => applySettings());
+
+function selectLetter(i) { sel = i; syncUI(); }
+function syncTabs() {
+  [...$('tabs').children].forEach((b, i) => {
+    b.classList.toggle('on', i === sel);
+    const c = S.colorMode === 'gradient' ? sampleStops(S.grad.stops, (i + 0.5) / 5) : S.solid;
+    b.style.background = c; b.style.color = lum(c) > 0.72 ? '#1d1d27' : '#fff';
+  });
+}
+
+function syncUI() {
+  syncTabs();
+  for (const id of ranges) {
+    const el = $(id), v = el._get();
+    if (document.activeElement !== el) el.value = v;
+    $(id + 'o').textContent = el.dataset.fmt === 'deg' ? fmtDeg(v) : fmtNum(v);
+  }
+  $('gaps').querySelectorAll('input').forEach((inp, i) => {
+    if (document.activeElement !== inp) inp.value = S.gaps[i];
+    inp.nextElementSibling.textContent = fmtNum(S.gaps[i]);
+  });
+  $('zv').textContent = S.letters[sel].z;
+  $('lcol').value = S.solid;
+  const grad = S.colorMode === 'gradient';
+  $('mSolid').classList.toggle('on', !grad); $('mGrad').classList.toggle('on', grad);
+  $('gradUI').hidden = !grad; $('solidRow').hidden = grad;
+  wordEd.sync();
+}
+
+$('reset').onclick = () => { S = structuredClone(DEFAULTS); applySettings(); syncUI(); syncScene(); };
+$('copy').onclick = async () => {
+  const txt = JSON.stringify(S, null, 2);
+  try { await navigator.clipboard.writeText(txt); $('copy').textContent = 'Copied ✓'; }
+  catch { console.log(txt); $('copy').textContent = 'Logged to console'; }
+  setTimeout(() => $('copy').textContent = 'Copy settings', 1400);
+};
+const setPanel = (open) => panel.classList.toggle('hidden', !open);
+$('hide').onclick = () => setPanel(false);
+$('toggle').onclick = () => setPanel(true);
+window.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, [contenteditable]')) return;
+  if (e.key === 'h' || e.key === 'H') setPanel(panel.classList.contains('hidden'));
+});
+
+
+/* ───────────────────────── Zoom & pan ───────────────────────── */
+
+const view = { zoom: 1, panX: 0, panY: 0 };
+const panelShown = () => !panel.classList.contains('hidden') && window.innerWidth > 640;
+const halfTan = () => Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+const shiftNdc = (forExport) => (!forExport && panelShown()) ? 340 / window.innerWidth : 0;
+
+let zoomMode = false, panning = false;
+const ZMIN = 0.5, ZMAX = 12;
+function zoomAt(factor, cx = window.innerWidth / 2, cy = window.innerHeight / 2) {
+  const before = camTarget(), t = halfTan();
+  const nx = (cx / window.innerWidth) * 2 - 1, ny = -(cy / window.innerHeight) * 2 + 1;
+  view.zoom = Math.min(Math.max(view.zoom * factor, ZMIN), ZMAX);
+  const after = camTarget();
+  // keep the point under the cursor fixed
+  view.panX += (shiftNdc() + nx) * (before.z - after.z) * t * camera.aspect;
+  view.panY += ny * (before.z - after.z) * t;
+  $('zpct').textContent = Math.round(view.zoom * 100) + '%';
+}
+function setZoomMode(on) {
+  zoomMode = on;
+  $('zmode').classList.toggle('on', on);
+  document.body.classList.toggle('zooming', on);
+  if (on) letters.forEach(l => l.hoverT = 0);
+}
+cv.addEventListener('wheel', (ev) => {
+  if (!zoomMode && !ev.ctrlKey) return;          // pinch on a trackpad always zooms
+  ev.preventDefault();
+  zoomAt(Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0015)), ev.clientX, ev.clientY);
+}, { passive: false });
+$('zmode').onclick = () => setZoomMode(!zoomMode);
+window.addEventListener('keydown', (e) => { if (e.key === 'Meta') document.body.classList.add('cmd'); });
+window.addEventListener('keyup', (e) => { if (e.key === 'Meta') document.body.classList.remove('cmd'); });
+window.addEventListener('blur', () => document.body.classList.remove('cmd'));
+$('zin').onclick = () => zoomAt(1.25);
+$('zout').onclick = () => zoomAt(0.8);
+$('zfit').onclick = () => { view.zoom = 1; view.panX = 0; view.panY = 0; $('zpct').textContent = '100%'; };
+window.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, [contenteditable]')) return;
+  if (e.key === 'z' || e.key === 'Z') setZoomMode(!zoomMode);
+  if (e.key === 'Escape') setZoomMode(false);
+});
+
+/* ───────────────────────── Scene + export controls ───────────────────────── */
+
+$('bgc').oninput = (e) => { S.bg = e.target.value; applySettings(); syncScene(); };
+$('bgSolid').onclick = () => { S.bgMode = 'solid'; applySettings(); syncScene(); };
+$('bgGradBtn').onclick = () => { S.bgMode = 'gradient'; applySettings(); syncScene(); };
+const LIGHT_UI = [['lexp', 'exposure', v => v.toFixed(2)], ['lcon', 'contrast', v => Math.round(v * 100) + '%'],
+  ['lsha', 'shadows', v => Math.round(v * 100) + '%'], ['lang', 'angle', v => Math.round(v) + '°'], ['lhei', 'height', v => Math.round(v) + '°']];
+for (const [id, k] of LIGHT_UI) $(id).oninput = (e) => { S.light[k] = +e.target.value; applySettings(); syncScene(); };
+$('extr').onchange = (e) => { S.exportTransparent = e.target.checked; save(); };
+$('scales').querySelectorAll('button').forEach(b => b.onclick = () => { S.exportScale = +b.dataset.s; save(); syncScene(); });
+
+function exportSize(scale) {
+  const gl = renderer.getContext();
+  const maxDim = Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), gl.getParameter(gl.MAX_TEXTURE_SIZE), S.glass ? 8192 : 16384);
+  const w = window.innerWidth, h = window.innerHeight;
+  // also cap the total size: very large canvases exceed Chrome's memory limits and the export fails
+  const MAX_PIXELS = 36e6;
+  const s = Math.min(scale, maxDim / w, maxDim / h, Math.sqrt(MAX_PIXELS / (w * h)));
+  return { s, w: Math.floor(w * s), h: Math.floor(h * s) };
+}
+function syncScene() {
+  $('bgc').value = S.bg;
+  const bgG = S.bgMode === 'gradient';
+  $('bgSolid').classList.toggle('on', !bgG); $('bgGradBtn').classList.toggle('on', bgG);
+  $('bgSolidRow').hidden = bgG; $('bgGrad').hidden = !bgG; bgEd.sync();
+  for (const [id, k, f] of LIGHT_UI) { if (document.activeElement !== $(id)) $(id).value = S.light[k]; $(id + 'o').textContent = f(S.light[k]); }
+  $('extr').checked = !!S.exportTransparent;
+  $('scales').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.s === S.exportScale));
+  const d = exportSize(S.exportScale);
+  $('exdim').textContent = `${d.w} × ${d.h} px` + (d.s < S.exportScale ? ' (capped to stay within browser limits)' : '');
+}
+window.addEventListener('resize', syncScene);
+
+async function renderPNG(scale) {
+  const w = window.innerWidth, h = window.innerHeight, pr = renderer.getPixelRatio();
+  const { s } = exportSize(scale);
+  const saved = { p: camera.position.clone(), q: camera.quaternion.clone() };
+  try {
+    // frame as if the panel were hidden, keeping the user's zoom/pan
+    const ct = camTarget(true);
+    camera.position.set(ct.x, ct.y, ct.z); camera.lookAt(ct.x, ct.y - 0.15, 0);
+    renderer.setPixelRatio(s); renderer.setSize(w, h, false);
+    renderFrame(S.exportTransparent);
+    if (renderer.getContext().isContextLost()) throw new Error('context lost');
+    const out = document.createElement('canvas');
+    out.width = renderer.domElement.width; out.height = renderer.domElement.height;
+    const g = out.getContext('2d');
+    if (!g) throw new Error('canvas too large');
+    if (!S.exportTransparent) fillBg(g, out.width, out.height);
+    g.drawImage(renderer.domElement, 0, 0);
+    const blob = await new Promise(r => out.toBlob(r, 'image/png'));
+    if (!blob) throw new Error('PNG encoding failed');
+    out.width = out.height = 0;   // free the big canvas straight away
+    return { blob, W: renderer.domElement.width, H: renderer.domElement.height };
+  } finally {
+    renderer.setPixelRatio(pr); renderer.setSize(w, h);
+    camera.position.copy(saved.p); camera.quaternion.copy(saved.q);
+  }
+}
+$('export').onclick = async () => {
+  const btn = $('export');
+  btn.disabled = true; btn.textContent = 'Rendering…';
+  await new Promise(r => setTimeout(r, 60));   // let the button state paint
+  let scale = S.exportScale, res = null;
+  while (!res && scale >= 1) {                 // too big for this machine? quietly try the next size down
+    try { res = await renderPNG(scale); } catch (err) { console.warn('export at', scale + '×', 'failed:', err); scale /= 2; }
+  }
+  if (res) {
+    const name = `imagi-${res.W}x${res.H}.png`;
+    if (window.parent !== window) window.parent.postMessage({ type: 'imagi-download', name, blob: res.blob }, '*');   // inside Imagi Studio: the top page saves it (Chrome blocks downloads from embedded frames)
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(res.blob); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+    if (scale < S.exportScale) { $('exdim').textContent = `Saved at ${res.W} × ${res.H} px (largest size this browser could render)`; }
+  } else alert('Export failed. Try 2× or a smaller window.');
+  btn.disabled = false; btn.textContent = 'Export PNG';
+};
+
+syncUI();
+syncScene();
+resize();
+{ const ct = camTarget(); camera.position.set(ct.x, ct.y, ct.z); camera.lookAt(ct.x, ct.y - 0.15, 0); }
+
+/* ───────────────────────── Layout / loop ───────────────────────── */
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+function camTarget(forExport = false) {
+  const z = fitDist(forExport) / view.zoom, t = halfTan();
+  return { x: view.panX + shiftNdc(forExport) * z * t * camera.aspect, y: 0.15 + view.panY, z };
+}
+function fitDist(forExport = false) {
+  const t = halfTan();
+  const usable = (!forExport && panelShown()) ? Math.max(0.4, 1 - 340 / window.innerWidth) : 1;   // keep clear of the panel
+  return Math.max((wordWidth + 1.6) / 2 / (t * camera.aspect * usable), (2.0 / 2) / t);
+}
+window.addEventListener('resize', resize);
+
+const K = 16, DAMP = 2.4;          // rotational spring back to rest (underdamped → jelly wobble)
+const clock = new THREE.Clock();
+const idleE = new THREE.Euler(), idleQ = new THREE.Quaternion(), rv = new THREE.Vector3();
+let gx = 0, gy = 0;
+
+/* ───────────────────────── Saved looks A / B + animation between them ───────────────────────── */
+const SLOTS = { A: null, B: null };
+const ANIM = { mode: 'stop', t: 0, dir: 1, dur: 2.5, ease: 'back', strength: 1 };
+const EASES = {
+  smooth: x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2,
+  linear: x => x,
+  out: x => 1 - Math.pow(1 - x, 3),
+  back: (x, k) => { const c = 1.70158 * k; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); },   // overshoots, settles back
+  bounce: (x, k) => { const n = 7.5625, d = 2.75, x0 = x; let y;                                                          // drops in and bounces
+    if (x < 1 / d) y = n * x * x; else if (x < 2 / d) y = n * (x -= 1.5 / d) * x + 0.75;
+    else if (x < 2.5 / d) y = n * (x -= 2.25 / d) * x + 0.9375; else y = n * (x -= 2.625 / d) * x + 0.984375;
+    const o = 1 - Math.pow(1 - x0, 3); return o + (y - o) * k; },   // strength 0 = no bounce, 1 = classic, more = livelier
+  elastic: (x, k) => x <= 0 ? 0 : x >= 1 ? 1 : 1 + Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * (2 * Math.PI / 3)) * k,   // springy wobble
+};
+const STRENGTH_EASES = ['back', 'bounce', 'elastic'];
+const easeIO = (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const lerpHex = (a, b, t) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), t).getHexString();
+// any colour setting as a list of 9 evenly spaced colours (solid = flat), so solid ↔ gradient and different stop counts blend smoothly
+const colorAt = (mode, solid, grad, p) => mode === 'gradient' ? sampleStops(grad.stops, p) : solid;
+function blendGrad(aMode, aSolid, aGrad, bMode, bSolid, bGrad, t) {
+  const stops = [];
+  for (let k = 0; k <= 8; k++) { const p = k / 8; stops.push({ p, c: lerpHex(colorAt(aMode, aSolid, aGrad, p), colorAt(bMode, bSolid, bGrad, p), t) }); }
+  const ang = (aMode === 'gradient' ? aGrad.angle : bGrad.angle) * (1 - t) + (bMode === 'gradient' ? bGrad.angle : aGrad.angle) * t;
+  return { angle: ang, stops };
+}
+function blendLooks(A, B, m) {   // m = eased progress (can overshoot past 0..1 for bouncy eases)
+  const t = Math.min(Math.max(m, 0), 1), o = structuredClone(t < 0.5 ? A : B);
+  o.letters = A.letters.map((la, i) => { const lb = B.letters[i];
+    return { ...la, rx: lerp(la.rx, lb.rx, m), ry: lerp(la.ry, lb.ry, m), rz: lerp(la.rz, lb.rz, m), y: lerp(la.y, lb.y, m), z: lerp(la.z, lb.z, m) }; });
+  o.tracking = lerp(A.tracking, B.tracking, m);
+  o.gaps = A.gaps.map((g, i) => lerp(g, B.gaps[i], m));
+  for (const k of Object.keys(A.light)) o.light[k] = lerp(A.light[k], B.light[k], t);
+  if (A.colorMode === B.colorMode && A.colorMode !== 'gradient') o.solid = lerpHex(A.solid, B.solid, t);
+  else { o.colorMode = 'gradient'; o.grad = blendGrad(A.colorMode, A.solid, A.grad, B.colorMode, B.solid, B.grad, t); }
+  if (A.bgMode === B.bgMode && A.bgMode !== 'gradient') o.bg = lerpHex(A.bg, B.bg, t);
+  else { o.bgMode = 'gradient'; o.bgGrad = blendGrad(A.bgMode, A.bg, A.bgGrad, B.bgMode, B.bg, B.bgGrad, t); }
+  o.exportScale = S.exportScale; o.exportTransparent = S.exportTransparent;
+  return o;
+}
+function showLook(k) { if (!SLOTS[k]) return; ANIM.mode = 'stop'; S = structuredClone(SLOTS[k]); applySettings(true); syncUI(); syncScene(); syncAnimUI(); }
+function syncAnimUI() {
+  document.querySelectorAll('.slot').forEach(el => { const has = !!SLOTS[el.dataset.k]; el.classList.toggle('has', has);
+    el.querySelector('.st').textContent = has ? 'Saved' : 'Empty'; el.querySelector('.show').disabled = !has; });
+  const ready = SLOTS.A && SLOTS.B;
+  document.querySelectorAll('#aplay button').forEach(b => { b.classList.toggle('on', b.dataset.m === ANIM.mode); if (b.dataset.m !== 'stop') b.disabled = !ready; });
+  $('adur').value = ANIM.dur; $('aduro').textContent = ANIM.dur.toFixed(1) + 's';
+  $('aease').value = ANIM.ease; $('astr').value = ANIM.strength; $('astro').textContent = ANIM.strength.toFixed(2);
+  $('astrRow').hidden = !STRENGTH_EASES.includes(ANIM.ease);
+}
+document.querySelectorAll('.slot').forEach(el => {
+  el.querySelector('.save').onclick = () => { SLOTS[el.dataset.k] = structuredClone(S); const b = el.querySelector('.save'); b.textContent = 'Saved ✓'; setTimeout(() => b.textContent = 'Save ' + el.dataset.k, 900); syncAnimUI(); };
+  el.querySelector('.show').onclick = () => showLook(el.dataset.k);
+});
+$('adur').oninput = (e) => { ANIM.dur = +e.target.value; syncAnimUI(); };
+$('aease').onchange = (e) => { ANIM.ease = e.target.value; syncAnimUI(); };
+$('astr').oninput = (e) => { ANIM.strength = +e.target.value; syncAnimUI(); };
+document.querySelectorAll('#aplay button').forEach(b => b.onclick = () => {
+  const m = b.dataset.m;
+  if (m === 'stop') { ANIM.mode = 'stop'; syncAnimUI(); return; }
+  if (!SLOTS.A || !SLOTS.B) return;
+  ANIM.mode = m; ANIM.t = 0; ANIM.dir = 1; syncAnimUI();
+});
+function stepAnim(dt) {
+  if (ANIM.mode === 'stop') return;
+  ANIM.t += ANIM.dir * dt / ANIM.dur;
+  if (ANIM.mode === 'ab' && ANIM.t >= 1) { ANIM.t = 1; ANIM.mode = 'stop'; }
+  if (ANIM.mode === 'loop') { if (ANIM.t >= 1) { ANIM.t = 1; ANIM.dir = -1; } else if (ANIM.t <= 0) { ANIM.t = 0; ANIM.dir = 1; } }
+  const x = Math.min(Math.max(ANIM.t, 0), 1), f = EASES[ANIM.ease], k = ANIM.strength;
+  const e = ANIM.dir > 0 ? f(x, k) : 1 - f(1 - x, k);   // heading back to A, the bounce lands on A
+  S = (ANIM.mode === 'stop' && ANIM.t >= 1) ? structuredClone(SLOTS.B) : blendLooks(SLOTS.A, SLOTS.B, e);
+  applySettings(true);
+  if (ANIM.mode === 'stop') { syncUI(); syncScene(); syncAnimUI(); }
+}
+syncAnimUI();
+
+// zero the selected letter / every letter (rotation, lift, depth)
+const zero = (L) => Object.assign(L, { rx: 0, ry: 0, rz: 0, y: 0, z: 0 });
+$('zeroOne').onclick = () => { zero(S.letters[sel]); applySettings(); syncUI(); };
+$('zeroAll').onclick = () => { S.letters.forEach(zero); applySettings(); syncUI(); };
+
+// type a value straight into any slider's readout: click the number, type, Enter (or click away)
+function editableOutputs() {
+  document.querySelectorAll('#panel .row output').forEach(o => { if (o.isContentEditable) return; o.contentEditable = 'true'; o.spellcheck = false; });
+}
+editableOutputs();
+new MutationObserver(editableOutputs).observe($('panel'), { childList: true, subtree: true });
+function commitOutput(o) {
+  const range = o.parentElement.querySelector('input[type=range]'); if (!range) return;
+  const txt = o.textContent.trim(), n = parseFloat(txt.replace(',', '.').replace(/[^0-9.+-]/g, ''));
+  if (!isNaN(n)) {
+    const v = txt.endsWith('%') || o.dataset.pct ? n / 100 : n;        // "65%" sliders store 0.65
+    range.value = Math.min(+range.max, Math.max(+range.min, v));
+  }
+  range.dispatchEvent(new Event('input', { bubbles: true }));          // apply + redraw the formatted value
+}
+$('panel').addEventListener('focusin', e => { const o = e.target; if (o.matches?.('.row output')) { o.dataset.pct = o.textContent.trim().endsWith('%') ? '1' : ''; requestAnimationFrame(() => document.getSelection().selectAllChildren(o)); } });
+$('panel').addEventListener('keydown', e => { const o = e.target; if (!o.matches?.('.row output')) return;
+  if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); o.blur(); }
+  e.stopPropagation(); });
+$('panel').addEventListener('focusout', e => { const o = e.target; if (o.matches?.('.row output')) commitOutput(o); });
+
+function frame() {
+  const dt = Math.min(clock.getDelta(), 1 / 30), t = clock.elapsedTime;
+  stepAnim(dt);
+  const ease = 1 - Math.exp(-8 * dt);
+
+  // camera follows word width; slides so the word sits clear of the panel
+  const ct = camTarget();
+  camera.position.x += (ct.x - camera.position.x) * ease;
+  camera.position.y += (ct.y - camera.position.y) * ease;
+  camera.position.z += (ct.z - camera.position.z) * ease;
+  camera.lookAt(camera.position.x, camera.position.y - 0.15, 0);
+
+  for (const L of letters) {
+    L.base.lerp(L.target, ease);
+    L.rest.slerp(L.restTarget, ease);
+    if (L !== drag.L) {
+      const q = L.spin;
+      if (q.w < 0) q.set(-q.x, -q.y, -q.z, -q.w);
+      const half = Math.acos(Math.min(q.w, 1)), sh = Math.sin(half);
+      if (sh > 1e-6) rv.set(q.x, q.y, q.z).multiplyScalar(2 * half / sh); else rv.set(0, 0, 0);
+      L.w.addScaledVector(rv, -K * dt).multiplyScalar(Math.exp(-DAMP * dt));
+      const ang = L.w.length() * dt;
+      if (ang > 1e-7) { tmpQ.setFromAxisAngle(tmpV.copy(L.w).normalize(), ang); q.premultiply(tmpQ).normalize(); }
+    }
+    L.hover += (L.hoverT - L.hover) * (1 - Math.exp(-10 * dt));
+    L.press += ((L === drag.L ? 1 : 0) - L.press) * (1 - Math.exp(-14 * dt));
+
+    const p = L.phase;
+    idleE.set(Math.sin(t * 0.63 + p) * 0.07, Math.sin(t * 0.47 + p * 1.7) * 0.12, Math.sin(t * 0.71 + p * 0.6) * 0.035, 'YXZ');
+    idleQ.setFromEuler(idleE);
+    L.mesh.quaternion.copy(L.spin).multiply(L.rest).multiply(idleQ);
+    L.mesh.position.set(
+      L.base.x,
+      L.base.y + Math.sin(t * 0.9 + p) * 0.035 + L.hover * 0.03,
+      L.base.z + Math.sin(t * 0.55 + p * 2.1) * 0.04 + L.hover * 0.08 + L.press * 0.15
+    );
+    const sc = 1 + L.hover * 0.025 + L.press * 0.03;
+    L.mesh.scale.setScalar(sc);
+  }
+
+  // whole word leans gently toward the cursor
+  const tx = pointer.inside ? pointer.y * -0.08 : 0, ty = pointer.inside ? pointer.x * 0.12 : 0;
+  gx += (tx - gx) * (1 - Math.exp(-3 * dt)); gy += (ty - gy) * (1 - Math.exp(-3 * dt));
+  word.rotation.set(gx, gy, 0);
+  word.position.y = Math.sin(t * 0.5) * 0.02;
+
+  renderFrame();
+  requestAnimationFrame(frame);
+}
+frame();
+requestAnimationFrame(() => { canvasReady = true; cv.style.opacity = layered() ? 1 : S.opacity; });
+</script>
+</body>
+</html>
